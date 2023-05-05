@@ -15,8 +15,6 @@ from didcomm import (
     unpack,
 )
 
-import mock_secrets_resolver_alice
-
 from peerdid.dids import (
     create_peer_did_numalgo_0,
     create_peer_did_numalgo_2,
@@ -54,59 +52,30 @@ from didcomm.did_doc.did_resolver import DIDResolver
 
 ##################
 
-#
-def update_secrets_kids(in_kaKeys, in_sKeys, peerdid):
-    
-    chunks = peerdid[13:].split('.')
-    ctr = 0
-    out_kaKeys = []
-    for jk in in_kaKeys:
-        k = json.loads(jk)
-        k['kid'] = "#"+chunks[ctr][:8:]
-        ctr+=1
-        out_kaKeys.append(json.dumps(k))
-        
-    out_sKeys = []
-    for jk in in_sKeys:
-        k = json.loads(jk)
-        k['kid'] = "#"+chunks[ctr][:8:]
-        ctr+=1
-        out_sKeys.append(json.dumps(k))
-
-    return [out_kaKeys, out_sKeys]
-
 async def create_peerdid(nka, ns, mediator=None):
 
     kaKeys = []
-    in_kaKeys = []
     for i in range(nka):
         key = generate_x25519_keys_as_jwk_dict()[0]
-        in_kaKeys.append(json.dumps(key))
-        kaKeys.append(X25519KeyAgreementKey.from_jwk(key))
+        kaKeys.append(key)
         
     sKeys = []
-    in_sKeys = []
     for i in range(ns):
         key = generate_ed25519_keys_as_jwk_dict()[0]
-        in_sKeys.append(json.dumps(key))
-        sKeys.append(Ed25519VerificationKey.from_jwk(key))
+        sKeys.append(key)
 
     if mediator == None:
         m = []
         s = "https://example.com/endpoint1"
     else:
         did_doc = resolve_peer_did(peer_did=mediator)
-        m = [str(mediator)+str(did_doc.verification_method[0].id)]
-        s = str(mediator)+str(did_doc.verification_method[0].id)
-
-    print(m)
-    print(s)
+        m = [str(mediator)+"#"+str(did_doc.verification_method[0].id)]
+        s = str(mediator)+"#"+str(did_doc.verification_method[0].id)
         
     service = {
         "type": "did-communication",
-        "serviceEndpoint": s, #"https://example.com/endpoint1",
+        "serviceEndpoint": s,
         "routingKeys": m,
-#        "routingKeys": ["did:example:somemediator#somekey1"],
         "accept": ["didcomm/v2"],
     }   
 
@@ -115,18 +84,12 @@ async def create_peerdid(nka, ns, mediator=None):
         signing_keys=sKeys,
         service=service
     )
-
-    # This is a very dirty way to update the 'kid' of the Secrets.
-    # There must be a better way
-    [sk_kaKeys, sk_sKeys] = update_secrets_kids(in_kaKeys, in_sKeys, peer_did_algo_2)
-    print("AAAAAAAAAAAAAAAAAA")
-    print(sk_kaKeys)
-    print("AAAAAAAAAAAAAAAAAA")    
+    
     assert is_peer_did(peer_did_algo_2)
     return {
         'peerdid': peer_did_algo_2,
-        'sk_kaKeys': sk_kaKeys,
-        'sk_sKeys': sk_sKeys
+        'sk_kaKeys': in_kaKeys,
+        'sk_sKeys': in_sKeys
         }
 
 #@pytest.mark.asyncio
@@ -171,7 +134,7 @@ class DIDResolverPeerDID(DIDResolver):
         return DIDDoc(
             id=did_doc.id,
             authentication=did_doc.authentication,
-            key_agreement=did_doc.key_agreement,
+            key_agreement=did_doc.Key_agreement,#list(map(lambda kid: str(did)+kid, did_doc.key_agreement)), #did_doc.key_agreement,
             verification_method=did_doc.verification_method,
             service=[DIDCommService(
                 id=did_doc.service[0].id,
@@ -182,11 +145,6 @@ class DIDResolverPeerDID(DIDResolver):
                 recipient_keys=[]
             )]
         )
-
-class MockSecretsResolver(SecretsResolverInMemory):
-    def __init__(self, secretsList):
-        super().__init__(
-            secrets=list(mock_secrets_resolver_alice.MockSecretsResolverAlice()._secrets.values()))
 
 def main():
 
