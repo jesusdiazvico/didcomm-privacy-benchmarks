@@ -169,18 +169,19 @@ BOB_SECRET_KEY_AGREEMENT_KEY_P521_2 = Secret(
 
 
 class MockSecretsResolverBob(MockSecretsResolverInMemory):
-    def __init__(self):
-        super().__init__(
-            secrets=[
-                BOB_SECRET_KEY_AGREEMENT_KEY_X25519_1,
-                BOB_SECRET_KEY_AGREEMENT_KEY_X25519_2,
-                BOB_SECRET_KEY_AGREEMENT_KEY_X25519_3,
-                BOB_SECRET_KEY_AGREEMENT_KEY_X25519_4,
-                BOB_SECRET_KEY_AGREEMENT_KEY_P256_1,
-                BOB_SECRET_KEY_AGREEMENT_KEY_P256_2,
-                BOB_SECRET_KEY_AGREEMENT_KEY_P384_1,
-                BOB_SECRET_KEY_AGREEMENT_KEY_P384_2,
-                BOB_SECRET_KEY_AGREEMENT_KEY_P521_1,
-                BOB_SECRET_KEY_AGREEMENT_KEY_P521_2,
-            ]
-        )
+    def __init__(self, nka):
+        if nka < 1 or nka > 4: return
+        _secrets=[
+            BOB_SECRET_KEY_AGREEMENT_KEY_X25519_1,
+            BOB_SECRET_KEY_AGREEMENT_KEY_X25519_2,
+            BOB_SECRET_KEY_AGREEMENT_KEY_X25519_3,
+            BOB_SECRET_KEY_AGREEMENT_KEY_X25519_4,
+            #                BOB_SECRET_KEY_AGREEMENT_KEY_P256_1,
+            #                BOB_SECRET_KEY_AGREEMENT_KEY_P256_2,
+            #                BOB_SECRET_KEY_AGREEMENT_KEY_P384_1,
+            #                BOB_SECRET_KEY_AGREEMENT_KEY_P384_2,
+            #                BOB_SECRET_KEY_AGREEMENT_KEY_P521_1,
+            #                BOB_SECRET_KEY_AGREEMENT_KEY_P521_2,
+        ]
+        secrets = _secrets[0:nka]                    
+        super().__init__(secrets)
