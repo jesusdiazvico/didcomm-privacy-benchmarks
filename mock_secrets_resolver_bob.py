@@ -183,5 +183,5 @@ class MockSecretsResolverBob(MockSecretsResolverInMemory):
             #                BOB_SECRET_KEY_AGREEMENT_KEY_P521_1,
             #                BOB_SECRET_KEY_AGREEMENT_KEY_P521_2,
         ]
-        secrets = _secrets[0:nka]                    
+        secrets = _secrets[0:nka]
         super().__init__(secrets)

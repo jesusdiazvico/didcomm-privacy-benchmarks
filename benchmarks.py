@@ -59,7 +59,7 @@ async def send(
 
         # BOB's MEDIATOR
         forward_bob = await unpack_forward(resolvers_config_mediator1, packed_msg, True)
-        #    print(f"Got {forward_bob.forwarded_msg}")
+        # print(f"Got {forward_bob.forwarded_msg}")
         #    print("Size in bytes: "+str(get_dict_size(forward_bob.forwarded_msg)))
         sizes.append(get_dict_size(forward_bob.forwarded_msg))
         
@@ -88,7 +88,7 @@ def main():
     recipients = int(sys.argv[1])
     iters = int(sys.argv[2])    
     loop = asyncio.get_event_loop()    
-    mock_did_resolver = MockDIDResolverWithNonSecrets()
+    mock_did_resolver = MockDIDResolverWithNonSecrets(recipients)
     secrets_resolver_alice = MockSecretsResolverAlice();
     secrets_resolver_bob = MockSecretsResolverBob(recipients);
     secrets_resolver_mediator1 = MockSecretsResolverMediator1();    
