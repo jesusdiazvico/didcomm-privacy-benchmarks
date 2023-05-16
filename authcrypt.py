@@ -16,8 +16,16 @@ from authlib.common.encoding import (
     to_unicode,
     to_bytes,
     urlsafe_b64encode,
+    json_dumps,
+    json_loads,
 )
 from authlib.jose.drafts import register_jwe_draft
+
+def encode(msg):
+    return to_bytes(json_dumps(msg))
+
+def decode(msg):
+    return json_loads(msg)
 
 def gen_keys(n):
     keys = []
@@ -31,7 +39,7 @@ def calculate_apv(kids):
         urlsafe_b64encode(hashlib.sha256(to_bytes(".".join(sorted(kids)))).digest())
     )    
 
-# This is pretty much as in didcomm-python's anoncrypt.py
+# This is pretty much as in didcomm-python's authcrypt.py
 def build_header(to: List[AsymmetricKey]):
     # Toy example: making up the kids
     kids = list(map(lambda i: "did:example:bob#key"+str(i), range(len(to))))    
@@ -50,14 +58,14 @@ def build_header(to: List[AsymmetricKey]):
 def authcrypt(msg, pks, sk):
     header = build_header(pks)
     jwe = JsonWebEncryption()
-    ctxt = jwe.serialize_json(header, msg, pks, sender_key=sk)
+    ctxt = jwe.serialize_json(header, encode(msg), pks, sender_key=sk)
     return ctxt
 
 def authdecrypt(ctxt, sks, sender):
     header = build_header(sks)
     jwe = JsonWebEncryption()
     # For testing purposes, we only decrypt with the first recpient's key
-    dec = jwe.deserialize_json(ctxt,sks[0], sender_key=sender)
+    dec = decode(jwe.deserialize_json(ctxt,sks[0], sender_key=sender)['payload'])
     return dec
 
 def main():
@@ -72,37 +80,39 @@ def main():
     recipients = gen_keys(n_recipients)
 
     # Run tests iters times
-    anoncrypt_times = []
-    anondecrypt_times = []
+    authcrypt_times = []
+    authdecrypt_times = []
     sizes = []
+
+    msg_json = { 'data': msg }
     for i in range(iters):
 
-        # Measure time for anoncrypting
+        # Measure time for authcrypting
         st_crypt = time.process_time()
         ctxt = authcrypt(msg, recipients, sender)
         et_crypt = time.process_time()
-        anoncrypt_times.append(et_crypt - st_crypt)
+        authcrypt_times.append(et_crypt - st_crypt)
         sizes.append(sys.getsizeof(json.dumps(ctxt)))
 
-        # Measure time for "anondecrypting"
+        # Measure time for "authdecrypting"
         st_decrypt = time.process_time()
         dec = authdecrypt(ctxt, recipients, sender)
         et_decrypt = time.process_time()
-        anondecrypt_times.append(et_decrypt - st_decrypt)
+        authdecrypt_times.append(et_decrypt - st_decrypt)
 
-    anoncrypt_avg = numpy.average(anoncrypt_times)
-    anoncrypt_std = numpy.std(anoncrypt_times)
-    anondecrypt_avg = numpy.average(anondecrypt_times)
-    anondecrypt_std = numpy.std(anondecrypt_times)
+    authcrypt_avg = numpy.average(authcrypt_times)
+    authcrypt_std = numpy.std(authcrypt_times)
+    authdecrypt_avg = numpy.average(authdecrypt_times)
+    authdecrypt_std = numpy.std(authdecrypt_times)
     sizes_avg = numpy.average(sizes)
     sizes_std = numpy.std(sizes)
 
     print("{}\t{}\t{}\t{}\t{}\t{}\t{}"
         .format(n_recipients,
-                anoncrypt_avg,
-                anoncrypt_std,
-                anondecrypt_avg,
-                anondecrypt_std,
+                authcrypt_avg,
+                authcrypt_std,
+                authdecrypt_avg,
+                authdecrypt_std,
                 sizes_avg,
                 sizes_std)
           )
@@ -111,7 +121,7 @@ def main():
 
 if __name__ == "__main__":
     if len(sys.argv) != 4:
-        print("Usage ./anoncrypt <msg> <num. recipients> <iters>")
+        print("Usage ./authcrypt <msg> <num. recipients> <iters>")
         sys.exit()
     register_jwe_draft(JsonWebEncryption)
     main()

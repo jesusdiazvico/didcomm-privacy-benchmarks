@@ -16,7 +16,15 @@ from authlib.common.encoding import (
     to_unicode,
     to_bytes,
     urlsafe_b64encode,
+    json_dumps,
+    json_loads,
 )
+
+def encode(msg):
+    return to_bytes(json_dumps(msg))
+
+def decode(msg):
+    return json_loads(msg)
 
 def gen_keys(n):
     keys = []
@@ -47,14 +55,14 @@ def build_header(to: List[AsymmetricKey]):
 def anoncrypt(msg, pks):
     header = build_header(pks)
     jwe = JsonWebEncryption()
-    ctxt = jwe.serialize_json(header, msg, pks)
+    ctxt = jwe.serialize_json(header, encode(msg), pks)
     return ctxt
 
 def anondecrypt(ctxt, sks):
     header = build_header(sks)
     jwe = JsonWebEncryption()
     # For testing purposes, we only decrypt with the first recpient's key
-    dec = jwe.deserialize_json(ctxt,sks[0])
+    dec = decode(jwe.deserialize_json(ctxt,sks[0])['payload'])
     return dec
 
 def main():
@@ -71,18 +79,20 @@ def main():
     anoncrypt_times = []
     anondecrypt_times = []
     sizes = []
+
+    msg_json = { 'data': msg }
     for i in range(iters):
 
         # Measure time for anoncrypting
         st_crypt = time.process_time()
-        ctxt = anoncrypt(msg, recipients)
+        ctxt = anoncrypt(msg_json, recipients)
         et_crypt = time.process_time()
         anoncrypt_times.append(et_crypt - st_crypt)
         sizes.append(sys.getsizeof(json.dumps(ctxt)))
 
         # Measure time for "anondecrypting"
         st_decrypt = time.process_time()
-        dec = anondecrypt(ctxt, recipients)
+        dec_json = anondecrypt(ctxt, recipients)
         et_decrypt = time.process_time()
         anondecrypt_times.append(et_decrypt - st_decrypt)
 
