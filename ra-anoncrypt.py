@@ -113,22 +113,24 @@ def raanoncrypt(msg, pks):
         # Run KDF to get flag encryption key
         ckdf = ConcatKDFHash(
             algorithm = hashes.SHA256(),
-            length = 32,
+            length = 64,
             otherinfo = bytes("ra-anon", "utf-8"),
             backend = default_backend()
         )
         fk = ckdf.derive(shk)
 
         # Encrypt the flag
-        aes = AESCCM(fk)
-        nonce = secrets.token_bytes(12)
+        enc_flag = CBCHS2EncAlgorithm(256,512)
+        nonce = enc_flag.generate_iv()
         aad = bytes("ra-anon", "utf-8")
-        c = aes.encrypt(nonce=nonce,
-                        data=b'\x01',
-                        associated_data=aad)
+        c,t = enc_flag.encrypt(b'\x01',
+                               aad,
+                               nonce,
+                               fk)
         flags.append([
-            urlsafe_b64encode(c).decode('utf-8'),
-            urlsafe_b64encode(nonce).decode('utf-8'),
+            urlsafe_b64encode(c).decode('utf-8'), # ciphertext
+            urlsafe_b64encode(t).decode('utf-8'), #tag
+            urlsafe_b64encode(nonce).decode('utf-8') # iv
         ])
 
     # Base64-encode the _apv array
@@ -282,21 +284,31 @@ def raanondecrypt(ctxt, sks):
     match = False
     i = 0
     index = 0
-    for fn in flags:
-        flag = fn[0]
-        nonce = fn[1]
+    for ftn in flags:
+        flag = ftn[0]
+        flag_tag = ftn[1]
+        flag_nonce = ftn[2]
         shk = key.exchange_shared_key(ekp.get_public_key())
         ckdf = ConcatKDFHash(
             algorithm = hashes.SHA256(),
-            length = 32,
+            length = 64,
             otherinfo = bytes("ra-anon", "utf-8"),
             backend = default_backend()
         )
         fk = ckdf.derive(shk)
-        aes = AESCCM(fk)
-        f = aes.decrypt(nonce=urlsafe_b64decode(bytes(nonce, "utf-8")),
-                        data=urlsafe_b64decode(bytes(flag, "utf-8")),
-                        associated_data=bytes("ra-anon", "utf-8"))
+        enc_flag = CBCHS2EncAlgorithm(256,512)
+        f = b''
+        try:
+            f = enc_flag.decrypt(
+                urlsafe_b64decode(bytes(flag, "utf-8")),
+                bytes("ra-anon", "utf-8"),
+                urlsafe_b64decode(bytes(flag_nonce, "utf-8")),
+                urlsafe_b64decode(bytes(flag_tag, "utf-8")),
+                fk
+            )
+        except Exception:
+            pass # We don't care about failed attempts
+        
         if f == b'\x01':
             match = True
             index = i
@@ -305,8 +317,8 @@ def raanondecrypt(ctxt, sks):
         i = i+1
 
     if match == False:
-        return None    
-    
+        return None
+
     # If we reach this point, there was a match in the encrypted flags, so
     # go get the cek
     ek = ctxt['recipients'][index]['encrypted_key']
