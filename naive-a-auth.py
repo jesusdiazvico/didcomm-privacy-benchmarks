@@ -122,32 +122,32 @@ def main():
     sizes = []
     for i in range(iters):
 
-        # Measure time for anoncrypting
+        # Measure time for "crypting"
         st_crypt = time.process_time()
         ctxt = aauthcrypt(msg, recipients, sender)
         et_crypt = time.process_time()
         aacrypt_times.append(et_crypt - st_crypt)
         sizes.append(sys.getsizeof(json.dumps(ctxt)))
 
-        # Measure time for "anondecrypting"
+        # Measure time for "decrypting"
         st_decrypt = time.process_time()
         dec = aauthdecrypt(ctxt, recipients, sender)
         et_decrypt = time.process_time()
         aadecrypt_times.append(et_decrypt - st_decrypt)
 
-    anoncrypt_avg = numpy.average(aacrypt_times)
-    anoncrypt_std = numpy.std(aacrypt_times)
-    anondecrypt_avg = numpy.average(aadecrypt_times)
-    anondecrypt_std = numpy.std(aadecrypt_times)
+    crypt_avg = numpy.average(aacrypt_times)
+    crypt_std = numpy.std(aacrypt_times)
+    decrypt_avg = numpy.average(aadecrypt_times)
+    decrypt_std = numpy.std(aadecrypt_times)
     sizes_avg = numpy.average(sizes)
     sizes_std = numpy.std(sizes)
 
     print("{}\t{}\t{}\t{}\t{}\t{}\t{}"
         .format(n_recipients,
-                anoncrypt_avg,
-                anoncrypt_std,
-                anondecrypt_avg,
-                anondecrypt_std,
+                crypt_avg,
+                crypt_std,
+                decrypt_avg,
+                decrypt_std,
                 sizes_avg,
                 sizes_std)
           )

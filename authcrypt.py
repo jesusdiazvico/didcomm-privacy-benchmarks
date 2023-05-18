@@ -57,6 +57,7 @@ def build_header(to: List[AsymmetricKey]):
 
 def authcrypt(msg, pks, sk):
     header = build_header(pks)
+    print(header)
     jwe = JsonWebEncryption()
     ctxt = jwe.serialize_json(header, encode(msg), pks, sender_key=sk)
     return ctxt
@@ -80,8 +81,8 @@ def main():
     recipients = gen_keys(n_recipients)
 
     # Run tests iters times
-    authcrypt_times = []
-    authdecrypt_times = []
+    crypt_times = []
+    decrypt_times = []
     sizes = []
 
     msg_json = { 'data': msg }
@@ -91,28 +92,28 @@ def main():
         st_crypt = time.process_time()
         ctxt = authcrypt(msg, recipients, sender)
         et_crypt = time.process_time()
-        authcrypt_times.append(et_crypt - st_crypt)
+        crypt_times.append(et_crypt - st_crypt)
         sizes.append(sys.getsizeof(json.dumps(ctxt)))
 
         # Measure time for "authdecrypting"
         st_decrypt = time.process_time()
         dec = authdecrypt(ctxt, recipients, sender)
         et_decrypt = time.process_time()
-        authdecrypt_times.append(et_decrypt - st_decrypt)
+        decrypt_times.append(et_decrypt - st_decrypt)
 
-    authcrypt_avg = numpy.average(authcrypt_times)
-    authcrypt_std = numpy.std(authcrypt_times)
-    authdecrypt_avg = numpy.average(authdecrypt_times)
-    authdecrypt_std = numpy.std(authdecrypt_times)
+    crypt_avg = numpy.average(crypt_times)
+    crypt_std = numpy.std(crypt_times)
+    decrypt_avg = numpy.average(decrypt_times)
+    decrypt_std = numpy.std(decrypt_times)
     sizes_avg = numpy.average(sizes)
     sizes_std = numpy.std(sizes)
 
     print("{}\t{}\t{}\t{}\t{}\t{}\t{}"
         .format(n_recipients,
-                authcrypt_avg,
-                authcrypt_std,
-                authdecrypt_avg,
-                authdecrypt_std,
+                crypt_avg,
+                crypt_std,
+                decrypt_avg,
+                decrypt_std,
                 sizes_avg,
                 sizes_std)
           )

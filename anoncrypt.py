@@ -76,8 +76,8 @@ def main():
     recipients = gen_keys(n_recipients)
 
     # Run tests iters times
-    anoncrypt_times = []
-    anondecrypt_times = []
+    crypt_times = []
+    decrypt_times = []
     sizes = []
 
     msg_json = { 'data': msg }
@@ -87,28 +87,28 @@ def main():
         st_crypt = time.process_time()
         ctxt = anoncrypt(msg_json, recipients)
         et_crypt = time.process_time()
-        anoncrypt_times.append(et_crypt - st_crypt)
+        crypt_times.append(et_crypt - st_crypt)
         sizes.append(sys.getsizeof(json.dumps(ctxt)))
 
         # Measure time for "anondecrypting"
         st_decrypt = time.process_time()
         dec_json = anondecrypt(ctxt, recipients)
         et_decrypt = time.process_time()
-        anondecrypt_times.append(et_decrypt - st_decrypt)
+        decrypt_times.append(et_decrypt - st_decrypt)
 
-    anoncrypt_avg = numpy.average(anoncrypt_times)
-    anoncrypt_std = numpy.std(anoncrypt_times)
-    anondecrypt_avg = numpy.average(anondecrypt_times)
-    anondecrypt_std = numpy.std(anondecrypt_times)
+    crypt_avg = numpy.average(crypt_times)
+    crypt_std = numpy.std(crypt_times)
+    decrypt_avg = numpy.average(decrypt_times)
+    decrypt_std = numpy.std(decrypt_times)
     sizes_avg = numpy.average(sizes)
     sizes_std = numpy.std(sizes)
 
     print("{}\t{}\t{}\t{}\t{}\t{}\t{}"
         .format(n_recipients,
-                anoncrypt_avg,
-                anoncrypt_std,
-                anondecrypt_avg,
-                anondecrypt_std,
+                crypt_avg,
+                crypt_std,
+                decrypt_avg,
+                decrypt_std,
                 sizes_avg,
                 sizes_std)
           )
