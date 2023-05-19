@@ -5,6 +5,7 @@ import time
 import numpy
 import json
 import secrets
+import random
 import os
 
 import hashlib
@@ -85,19 +86,10 @@ def gen_keys(n):
         keys.append(k)
     return keys
 
-def calculate_apv(kids):
-    l = sorted(kids)
-    l.insert(0,"a-auth")
-    _apv = ".".join(l)
-    return to_unicode(
-        urlsafe_b64encode(hashlib.sha256(to_bytes(_apv)).digest())
-    ) 
-
 # This is pretty much as in didcomm-python's anoncrypt.py
-def build_header(to: List[AsymmetricKey]):
+def build_header(to: List[AsymmetricKey], apv):
     # Toy example: making up the kids
     kids = list(map(lambda i: "did:example:bob#key"+str(i), range(len(to))))
-    apv = calculate_apv(kids)
     protected = {
         "typ": 'application/didcomm-encrypted+json', # Defined in Sec 2.4 of DIDComm v2 spec
         "alg": 'ECDH-ES-1PU+A256KW', # New mode
@@ -107,9 +99,53 @@ def build_header(to: List[AsymmetricKey]):
     recipients = [{"header": {"kid": kid}} for kid in kids]
     return {"protected": protected, "recipients": recipients}
 
-def mergeaacrypt(msg, pks, sk):
+def mergeraacrypt(msg, pks, sk):
 
-    header = build_header(pks)
+    # Compute ephemeral key pair for flagging
+    ekp = gen_keys(1)[0]
+    _apv = {}    
+    _apv['ekp'] = ekp.as_dict(is_private=False)
+    
+    # Encrypt flag per recipient
+    flags = []
+    for pk in pks:
+
+        # Run ECDH
+        shk = ekp.exchange_shared_key(pk.get_public_key())
+
+        # Run KDF to get flag encryption key
+        ckdf = ConcatKDFHash(
+            algorithm = hashes.SHA256(),
+            length = 64,
+            otherinfo = bytes("ra-auth", "utf-8"),
+            backend = default_backend()
+        )
+        fk = ckdf.derive(shk)
+
+        # Encrypt the flag
+        enc_flag = CBCHS2EncAlgorithm(256,512)
+        nonce = enc_flag.generate_iv()
+        aad = bytes("ra-auth", "utf-8")
+        c,t = enc_flag.encrypt(b'\x01',
+                               aad,
+                               nonce,
+                               fk)
+        flags.append([
+            urlsafe_b64encode(c).decode('utf-8'), # ciphertext
+            urlsafe_b64encode(t).decode('utf-8'), #tag
+            urlsafe_b64encode(nonce).decode('utf-8') # iv
+        ])
+
+    # Base64-encode the _apv array
+    _apv['flags'] = flags
+    apv = to_unicode(urlsafe_b64encode(json.dumps(_apv).encode('utf-8')))
+        
+    header = build_header(pks, apv)    
+
+    ## From here on, we essentially copy the serialize_json function in
+    ## authlib.jose.rfc7516.jwe, but reusing the ekp computed above, and
+    ## ommitting some instructions aimed at achieving a generality that we
+    ## don't need for this PoC
 
     if not isinstance(pks, list): pks = [pks]
     header_obj = deepcopy(header)
@@ -194,7 +230,7 @@ def mergeaacrypt(msg, pks, sk):
         # Run KDF to get key re-encryption key
         kids = list(map(lambda i: "did:example:bob#key"+str(i), range(len(pks))))
         _oi = sorted(kids)
-        _oi.insert(0,"a-auth")
+        _oi.insert(0,"ra-auth")
         _oi.append(to_unicode(urlsafe_b64encode(to_bytes(tag))))
         oi = ".".join(_oi)
         ckdf = ConcatKDFHash(
@@ -211,7 +247,7 @@ def mergeaacrypt(msg, pks, sk):
         encryptor_eek = enc_eek.encryptor()
         data = ".".join(
             (
-                "a-auth",
+                "ra-auth",
                 "did:example:alice#key0",
                 urlsafe_b64encode(wrapped['ek']).decode('utf-8')
             )
@@ -230,7 +266,8 @@ def mergeaacrypt(msg, pks, sk):
         obj['unprotected'] = shared_header.unprotected
 
     for r in recipients:
-        #del r['header'] # Anonymous receivers, we don't want kids
+        del r['header'] # Anonymous receivers, we don't want kids
+        #print("Remove kid")
         r['encrypted_key'] = to_unicode(urlsafe_b64encode(r['encrypted_key']))
         for member in set(r.keys()):
             if member not in {'header', 'encrypted_key'}:
@@ -249,7 +286,7 @@ def mergeaacrypt(msg, pks, sk):
 # Sender should not be received here. Adding for testing purposes.
 # In reality, the sender key should be "resolved" once the sender identifier
 # is decrypted.
-def mergeaadecrypt(ctxt, sks, sender_pk):
+def mergeraadecrypt(ctxt, sks, sender_pk):
 
     # First, parse header as in deserialize_json@authlib.jose.rfc7516.jwe.py
     ctxt = ensure_dict(ctxt, 'JWE')
@@ -286,6 +323,60 @@ def mergeaadecrypt(ctxt, sks, sender_pk):
     key = alg.prepare_key(sks[0])
     kid = "did:example:bob#key0" # In our PoC, we always decrypt with Bob's first key
 
+
+    # Parse apv for potential matches
+    apv = extract_segment(to_bytes(protected['apv']), DecodeError, 'apv').decode('utf-8')
+
+    ## Retrieve the ekp
+    ekp = OKPKey.import_dict_key(json.loads(apv)['ekp'])
+
+    ## Trial-decrypt the flags
+    flags = json.loads(apv)['flags']
+
+    # For simulation purposes, pick "randomly" one key within the array
+    # this makes the trial decryption more realistic
+    rnd = random.randint(0,len(sks)-1)
+    key = sks[rnd]
+    match = False
+    i = 0
+    index = 0
+    for ftn in flags:
+        flag = ftn[0]
+        flag_tag = ftn[1]
+        flag_nonce = ftn[2]
+        shk = key.exchange_shared_key(ekp.get_public_key())
+        ckdf = ConcatKDFHash(
+            algorithm = hashes.SHA256(),
+            length = 64,
+            otherinfo = bytes("ra-auth", "utf-8"),
+            backend = default_backend()
+        )
+        fk = ckdf.derive(shk)
+        enc_flag = CBCHS2EncAlgorithm(256,512)
+        f = b''
+        try:
+            f = enc_flag.decrypt(
+                urlsafe_b64decode(bytes(flag, "utf-8")),
+                bytes("ra-auth", "utf-8"),
+                urlsafe_b64decode(bytes(flag_nonce, "utf-8")),
+                urlsafe_b64decode(bytes(flag_tag, "utf-8")),
+                fk
+            )
+        except Exception:
+            pass # We don't care about failed attempts
+        
+        if f == b'\x01':
+            match = True
+            index = i
+            break
+
+        i = i+1
+
+    if match == False:
+        return None
+    
+    # If we reach this point, there's been a match in the flags
+
     epk = key.import_key(shared_header['epk'])
     epk_pubkey = epk.get_op_key('wrapKey')
         
@@ -293,12 +384,12 @@ def mergeaadecrypt(ctxt, sks, sender_pk):
     # the sender's identity
     
     # Run ECDH
-    shk = sks[0].exchange_shared_key(epk_pubkey)
+    shk = sks[i].exchange_shared_key(epk_pubkey)
 
     # Run KDF to get flag encryption key
     kids = list(map(lambda i: "did:example:bob#key"+str(i), range(len(recipients))))
     _oi = sorted(kids)
-    _oi.insert(0,"a-auth")
+    _oi.insert(0,"ra-auth")
     _oi.append(to_unicode(urlsafe_b64encode(to_bytes(tag))))
     oi = ".".join(_oi)
     ckdf = ConcatKDFHash(
@@ -310,8 +401,8 @@ def mergeaadecrypt(ctxt, sks, sender_pk):
     edk = ckdf.derive(shk)
 
     # Re-encrypt the ek
-    iv_eek = ctxt['recipients'][0]['encrypted_key'][0:16]
-    ct = ctxt['recipients'][0]['encrypted_key'][16:]
+    iv_eek = ctxt['recipients'][index]['encrypted_key'][0:16]
+    ct = ctxt['recipients'][index]['encrypted_key'][16:]
 
     dec_eek = Cipher(algorithms.AES(edk), modes.CTR(iv_eek))
     decryptor_eek = dec_eek.decryptor()
@@ -321,7 +412,7 @@ def mergeaadecrypt(ctxt, sks, sender_pk):
     if len(chunks) != 3:
         raise ValueError("Wrong decryption of CEK (unexpected number of chunks).")
 
-    if chunks[0] != "a-auth":
+    if chunks[0] != "ra-auth":
         raise ValueError("Wrong decryption of CEK (invalid first chunk).")
 
     if chunks[1] != "did:example:alice#key0": # Hardcoded key id for testing purpose
@@ -378,14 +469,14 @@ def main():
 
         # Measure time for "crypting"
         st_crypt = time.process_time()
-        ctxt = mergeaacrypt(msg_json, recipients, sender)
+        ctxt = mergeraacrypt(msg_json, recipients, sender)
         et_crypt = time.process_time()
         crypt_times.append(et_crypt - st_crypt)
         sizes.append(sys.getsizeof(json.dumps(ctxt)))
         
         # Measure time for "decrypting"
         st_decrypt = time.process_time()
-        dec_json = mergeaadecrypt(ctxt, recipients, sender)
+        dec_json = mergeraadecrypt(ctxt, recipients, sender)
         if dec_json == None:
             print("Unexpected mismatch.")
             return
@@ -413,7 +504,7 @@ def main():
 
 if __name__ == "__main__":
     if len(sys.argv) != 4:
-        print("Usage ./merge-a-auth <msg> <num. recipients> <iters>")
+        print("Usage ./ra-authcrypt <msg> <num. recipients> <iters>")
         sys.exit()
     register_jwe_draft(JsonWebEncryption)        
     main()

@@ -1,7 +1,7 @@
 
 #!/bin/bash
 if [ "$#" -ne 3 ]; then
-	echo "Usage: $0 <mode=[anon|auth|naive-a-auth|merge-a-auth|ra-anon]> <niters> <output_file>"
+	echo "Usage: $0 <mode=[anon|auth|naive-a-auth|merge-a-auth|ra-anon|ra-auth]> <niters> <output_file>"
 	exit 0
 fi
 
@@ -29,6 +29,11 @@ elif [ "$1" = "ra-anon" ]; then
 	for i in {1..6}; do
 		`python ra-anoncrypt.py "Hello" $i $2 >> $3`
 	done
+elif [ "$1" = "ra-auth" ]; then
+	for i in {1..6}; do
+		`python ra-authcrypt.py "Hello" $i $2 >> $3`
+	done
+
 else
 	echo "Unknown mode."
 fi
