@@ -19,6 +19,8 @@ from authlib.common.encoding import (
     json_dumps,
     json_loads,
 )
+from authlib.jose.util import extract_header
+from authlib.jose.errors import DecodeError
 
 def encode(msg):
     return to_bytes(json_dumps(msg))
@@ -70,7 +72,13 @@ def main():
     # Parse params
     msg = sys.argv[1]
     n_recipients = int(sys.argv[2])
-    iters = int(sys.argv[3])
+
+    debug = False
+    if sys.argv[3] == "debug":
+        debug = True
+        iters = 1
+    else:
+        iters = int(sys.argv[3])
 
     # Generate recipients' key pairs
     recipients = gen_keys(n_recipients)
@@ -90,6 +98,16 @@ def main():
         crypt_times.append(et_crypt - st_crypt)
         sizes.append(sys.getsizeof(json.dumps(ctxt)))
 
+        if debug:
+            prot = extract_header(to_bytes(ctxt['protected']), DecodeError)
+            unprot = ctxt.get('unprotected')
+            print("Full DIDComm message:")
+            print(json.dumps(ctxt, indent=2))
+            print("protected header:")
+            print(json.dumps(prot, indent=2))
+            print("unprotected header:")
+            print(json.dumps(unprot, indent=2)) if unprot else print("None")
+            
         # Measure time for "anondecrypting"
         st_decrypt = time.process_time()
         dec_json = anondecrypt(ctxt, recipients)

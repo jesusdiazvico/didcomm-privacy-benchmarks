@@ -156,7 +156,7 @@ def raanoncrypt(msg, pks):
     jwe_aad = header_obj.get('aad')
     
     if len(pks) != len(recipients):
-        raise ValueError("Count of recipient keys {} does not equal to count of recipients{}"
+        raise ValueError("Count of recipient keys {} does not equal to count of recipients {}"
                          .format(len(pks), len(recipients)))
 
 
@@ -173,11 +173,8 @@ def raanoncrypt(msg, pks):
     if 'cek' in preset:
         cek = preset['cek']
     else:
-        cek = None
+        cek = None       
 
-#    if len(pks) > 1 and cek is None:
-#        raise ValueError("InvalidAlgorithmForMultipleRecipientsMode {}"
-#                         .format(alg.name))
     if 'header' in preset:
         shared_header.update_protected(preset['header'])
 
@@ -352,7 +349,13 @@ def main():
     # Parse params
     msg = sys.argv[1]
     n_recipients = int(sys.argv[2])
-    iters = int(sys.argv[3])
+
+    debug = False
+    if sys.argv[3] == "debug":
+        debug = True
+        iters = 1
+    else:
+        iters = int(sys.argv[3])    
 
     # Generate recipients' key pairs
     recipients = gen_keys(n_recipients)
@@ -371,6 +374,16 @@ def main():
         et_crypt = time.process_time()
         crypt_times.append(et_crypt - st_crypt)
         sizes.append(sys.getsizeof(json.dumps(ctxt)))
+
+        if debug:
+            prot = extract_header(to_bytes(ctxt['protected']), DecodeError)
+            unprot = ctxt.get('unprotected')
+            print("Full DIDComm message:")
+            print(json.dumps(ctxt, indent=2))
+            print("protected header:")
+            print(json.dumps(prot, indent=2))
+            print("unprotected header:")
+            print(json.dumps(unprot, indent=2)) if unprot else print("None")
 
         # Measure time for "anondecrypting"
         st_decrypt = time.process_time()

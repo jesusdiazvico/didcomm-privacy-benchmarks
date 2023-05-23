@@ -362,7 +362,13 @@ def main():
     # Parse params
     msg = sys.argv[1]
     n_recipients = int(sys.argv[2])
-    iters = int(sys.argv[3])
+
+    debug = False
+    if sys.argv[3] == "debug":
+        debug = True
+        iters = 1
+    else:
+        iters = int(sys.argv[3])
 
     # Generate key pairs
     sender = gen_keys(1)[0]
@@ -382,6 +388,16 @@ def main():
         et_crypt = time.process_time()
         crypt_times.append(et_crypt - st_crypt)
         sizes.append(sys.getsizeof(json.dumps(ctxt)))
+
+        if debug:
+            prot = extract_header(to_bytes(ctxt['protected']), DecodeError)
+            unprot = ctxt.get('unprotected')
+            print("Full DIDComm message:")
+            print(json.dumps(ctxt, indent=2))
+            print("protected header:")
+            print(json.dumps(prot, indent=2))
+            print("unprotected header:")
+            print(json.dumps(unprot, indent=2)) if unprot else print("None")
         
         # Measure time for "decrypting"
         st_decrypt = time.process_time()
