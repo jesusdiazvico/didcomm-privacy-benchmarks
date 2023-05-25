@@ -211,6 +211,12 @@ def mergeraacrypt(msg, pks, sk):
     ciphertext, tag = enc.encrypt(_msg, aad, iv, cek)
 
     # Delayed CEK encryption
+    kids = list(map(lambda i: "did:example:bob#key"+str(i), range(len(pks))))
+    _oi = sorted(kids)
+    _oi.insert(0,"ra-auth")
+    _oi.append(to_unicode(urlsafe_b64encode(to_bytes(tag))))
+    oi = ".".join(_oi)
+    
     for i in range(len(pks)):
         wrapped = alg.agree_upon_key_and_wrap_cek(
             enc,
@@ -228,11 +234,6 @@ def mergeraacrypt(msg, pks, sk):
         shk = epks[i].exchange_shared_key(pks[i].get_public_key())
 
         # Run KDF to get key re-encryption key
-        kids = list(map(lambda i: "did:example:bob#key"+str(i), range(len(pks))))
-        _oi = sorted(kids)
-        _oi.insert(0,"ra-auth")
-        _oi.append(to_unicode(urlsafe_b64encode(to_bytes(tag))))
-        oi = ".".join(_oi)
         ckdf = ConcatKDFHash(
             algorithm = hashes.SHA256(),
             length = 32,

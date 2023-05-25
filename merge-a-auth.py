@@ -144,13 +144,10 @@ def mergeaacrypt(msg, pks, sk):
     else:
         cek = None
 
-#    if len(pks) > 1 and cek is None:
-#        raise ValueError("InvalidAlgorithmForMultipleRecipientsMode {}"
-#                         .format(alg.name))
     if 'header' in preset:
         shared_header.update_protected(preset['header'])
 
-    # This is a tag-aware key agreement...
+    # This is a tag-aware key agreement; delay CEK encryption
     epks = []
     for i in range(len(pks)):
         prep = alg.generate_keys_and_prepare_headers(enc, pks[i], sender_key, preset)
@@ -175,6 +172,12 @@ def mergeaacrypt(msg, pks, sk):
     ciphertext, tag = enc.encrypt(_msg, aad, iv, cek)
 
     # Delayed CEK encryption
+    kids = list(map(lambda i: "did:example:bob#key"+str(i), range(len(pks))))
+    _oi = sorted(kids)
+    _oi.insert(0,"a-auth")
+    _oi.append(to_unicode(urlsafe_b64encode(to_bytes(tag))))
+    oi = ".".join(_oi)
+    
     for i in range(len(pks)):
         wrapped = alg.agree_upon_key_and_wrap_cek(
             enc,
@@ -187,16 +190,13 @@ def mergeaacrypt(msg, pks, sk):
         recipients[i]['encrypted_key'] = wrapped['ek']
 
         # Addition: We re-encrypt each ek with an additional layer, including
-        # the sender's identity
+        # the sender's identity (this can probably be taken out of the current
+        # function, thus building on the existing authlib encryption)
+        
         # Run ECDH
         shk = epks[i].exchange_shared_key(pks[i].get_public_key())
 
-        # Run KDF to get key re-encryption key
-        kids = list(map(lambda i: "did:example:bob#key"+str(i), range(len(pks))))
-        _oi = sorted(kids)
-        _oi.insert(0,"a-auth")
-        _oi.append(to_unicode(urlsafe_b64encode(to_bytes(tag))))
-        oi = ".".join(_oi)
+        # Run KDF to get key re-encryption key        
         ckdf = ConcatKDFHash(
             algorithm = hashes.SHA256(),
             length = 32,
@@ -246,9 +246,10 @@ def mergeaacrypt(msg, pks, sk):
 
     return obj
 
-# Sender should not be received here. Adding for testing purposes.
+# Sender should not be received here. Adding only for testing purposes.
 # In reality, the sender key should be "resolved" once the sender identifier
-# is decrypted.
+# is decrypted. Note that, if we "take out" of the encryption/decryption the
+# extra key encryption layer, this can be resolved by the caller.
 def mergeaadecrypt(ctxt, sks, sender_pk):
 
     # First, parse header as in deserialize_json@authlib.jose.rfc7516.jwe.py

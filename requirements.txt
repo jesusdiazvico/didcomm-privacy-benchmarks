@@ -1,0 +1,5 @@
+Authlib==1.2.0
+cffi==1.15.1
+cryptography==40.0.2
+numpy==1.24.3
+pycparser==2.21
