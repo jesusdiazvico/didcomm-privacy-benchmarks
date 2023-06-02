@@ -125,7 +125,7 @@ and will plot the results in three .png files:
 - `results-dec.png` for CPU decryption times.
 - `results-size.png` for DIDComm message sizes.
 
-## Nah, this is too much
+## Nah, this is too much I don't even want to install Python
 
 Do not despair! If you have a local Docker installation, just run:
 
