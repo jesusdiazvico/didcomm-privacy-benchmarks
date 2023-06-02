@@ -56,7 +56,7 @@ is as follows:
 - `<msg>`: The message you want to encrypt (no blank spaces).
 - `<num. recipients>`: A number larger than or equal to `1`. The message will be
 encrypted towards at most that many recipients. First using `1` recipient, then
-`2`, and so un until `<num. recipients>`.
+`2`, and so on until `<num. recipients>`.
 - `<iters>`: The number of times you want to run the encryption-decryption 
 cycle.
 
