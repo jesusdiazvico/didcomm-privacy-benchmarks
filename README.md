@@ -133,7 +133,7 @@ Do not despair! If you have a local Docker installation, just run:
 $ docker run -p 5000:5000 jdiazvico/didcomm-benchmarks
 ```
 
-Then, you can comforbatly access `localhost:5000` from your preferred browser,
+Then, you can comfortably access `localhost:5000` from your preferred browser,
 and that should show you some pre-computed graphs.
 
 If you want to recompute them locally, run the following instead:
