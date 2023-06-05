@@ -101,7 +101,7 @@ the data in "results.anon".
 Sure. If you run:
 
 ```
-$ ./get-stats <mode> <niters> <output file>
+$ ./get-stats.sh <mode> <niters> <output file>
 ```
 
 Where `<mode>` is one of `[anon,auth,naive-a-auth,merge-a-auth,ra-anon,ra-a-auth]`, 
@@ -115,7 +115,7 @@ scripts expect concrete file names!)
 Ok. Then, run:
 
 ```
-$ ./get-all-stats-and-print
+$ ./get-all-stats-and-print.sh
 ```
 
 This will run all modes, for `1000` iterations, to encrypt the message "Hello", 
