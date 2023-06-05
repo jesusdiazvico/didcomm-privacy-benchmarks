@@ -42,7 +42,7 @@ in Ubuntu. Probably also in other UNIX-based systems.
 
 # Running the programs, individually
 
-Once you have the environment readym you can run the following commands to get
+Once you have the environment ready you can run the following commands to get
 the data/plots:
 
 ```
