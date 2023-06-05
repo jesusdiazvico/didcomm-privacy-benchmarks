@@ -55,13 +55,12 @@ is as follows:
 
 - `<msg>`: The message you want to encrypt (no blank spaces).
 - `<num. recipients>`: A number larger than or equal to `1`. The message will be
-encrypted towards at most that many recipients. First using `1` recipient, then
-`2`, and so on until `<num. recipients>`.
+encrypted towards at most that many recipients (see next).
 - `<iters>`: The number of times you want to run the encryption-decryption 
 cycle.
 
 The previous programs then encrypt and decrypt the specified message, as many 
-times as indicated. First for 
+times as indicated. First using `1` recipient, then `2`, and so on until `<num. recipients>`.
 
 CPU time is measured for encryption and decryption, as well
 as DIDComm message sizes, and some stats are printed to the standard output.
