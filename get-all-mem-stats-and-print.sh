@@ -9,4 +9,4 @@ bash get-mem-stats.sh ra-anon 1000 results-mem.ra-anon
 bash get-mem-stats.sh ra-a-auth 1000 results-mem.ra-a-auth
 
 echo "Plotting reuslts."
-gnuplot print-stats-mem-cpu.gp
+gnuplot print-stats-mem.gp
