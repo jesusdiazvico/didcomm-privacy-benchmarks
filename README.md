@@ -28,7 +28,7 @@ authentication.
 # Requirements
 
 The code is in Python3. All needed Python packages are listed in the `requirements.txt`
-file. If you have a working Python3 implementation, and Gnuplot in your system, you only need to run:
+file. If you have a working Python3 implementation, you only need to run:
 
 ```
 pip install -r requirements.txt
@@ -38,7 +38,7 @@ And you are all done. Ideally, you should do that in a virtual environment,
 though, to avoid poluting  your global Python3 environment. 
 
 There are also a set of utility scripts in Bash and for Gnuplot. These work
-in Ubuntu. Probably also in other UNIX-based systems.
+in Ubuntu, provided that you have Gnuplot installed. Probably also in other UNIX-based systems.
 
 # Running the programs, individually
 
