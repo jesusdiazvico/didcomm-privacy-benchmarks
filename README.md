@@ -27,8 +27,8 @@ authentication.
 
 # Requirements
 
-The code is in Python3. All needed packages are listed in the `requirements.txt`
-file. If you have a working Python3 implementation, you only need to run:
+The code is in Python3. All needed Python packages are listed in the `requirements.txt`
+file. If you have a working Python3 implementation, and Gnuplot in your system, you only need to run:
 
 ```
 pip install -r requirements.txt
